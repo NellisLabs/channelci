@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    cacheable::CacheAble, redis2::SetType, requests::ManualJobTrigger, stats::JobStatus, AppState,
+    cacheable::CacheAble, ingest::runners::select_random_runner, redis2::SetType,
+    requests::ManualJobTrigger, stats::JobStatus, AppState,
 };
 use axum::{
     extract::{Json, Path, State},
@@ -90,9 +91,21 @@ pub async fn manual_job_trigger(
 
             (runner.name, runner.id)
         }
-        None => todo!("Create the ability to select random runners. This worked in the last iteration but was very buggy and to be frank, pretty bad.")
+        None => {
+            let runner = match select_random_runner(&app).await {
+                Ok(r) => r,
+                Err(err) => {
+                    println!("{err:?}");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        json!({"msg": "Failed to select a random runner."}).to_string(),
+                    );
+                }
+            };
+            (runner.name, runner.id)
+        }
     };
-
+    //TODO: Insert into taken runners
     let Ok(job) = sqlx::query_as::<_, Job>(r#"INSERT INTO job(assigned_runner,repo,triggered_by) VALUES($1,$2,$3) RETURNING *"#).bind(&runner.0).bind(repo.id).bind("Manual").fetch_one(&app.database.0).await else {
             return     (
                 StatusCode::INTERNAL_SERVER_ERROR,

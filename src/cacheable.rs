@@ -9,6 +9,9 @@ pub trait CacheAble: Sized {
     async fn get_with_i64(_: &AppState, _: i64) -> Result<Self::GetReturn> {
         unimplemented!()
     }
+    async fn get_with_github_id(_: &AppState, _: i64) -> Result<Self::GetReturn> {
+        unimplemented!()
+    }
     async fn get_using_name_and_owner(_: &AppState, _: &str, _: &str) -> Result<Self::GetReturn> {
         unimplemented!()
     }

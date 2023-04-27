@@ -2,6 +2,7 @@
 
 pub mod cacheable;
 pub mod config;
+pub mod ingest;
 pub mod models;
 pub mod redis2;
 pub mod requests;

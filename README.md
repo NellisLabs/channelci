@@ -15,3 +15,4 @@ Todo list. This to-do list is not complete and may change as different tasks are
 - [ ] Create runners
     - [ ] More detailed creation options and more runner options overall
 - [ ] Get Runners (Same as jobs, please. Search, all, specific.).
+- [ ] Improve errors around every aspect of ChannelCi
