@@ -1,8 +1,7 @@
 use crate::{cacheable::CacheAble, redis2::SetType, stats::JobStatus, AppState};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use channel_common::{database::Database, models::Repos};
-use redis::{Cmd, ConnectionLike};
 
 #[async_trait]
 impl CacheAble for Repos {
@@ -17,7 +16,7 @@ impl CacheAble for Repos {
                     match sqlx::query_as::<_, JobStatus>(
                         r#"SELECT id FROM repos WHERE gh_id = ($1)"#,
                     )
-                    .bind(&id)
+                    .bind(id)
                     .fetch_one(&db.0)
                     .await
                     {
@@ -41,8 +40,8 @@ impl CacheAble for Repos {
                     match sqlx::query_as::<_, Repos>(
                         r#"SELECT * FROM repos WHERE name = ($1) AND owner = ($2)"#,
                     )
-                    .bind(&name)
-                    .bind(&owner)
+                    .bind(name)
+                    .bind(owner)
                     .fetch_one(&db.0)
                     .await
                     {
@@ -63,7 +62,7 @@ impl CacheAble for Repos {
                 Some(&app.database),
                 Some(|db: Database| async move {
                     match sqlx::query_as::<_, Repos>(r#"SELECT * FROM repos WHERE id = ($1)"#)
-                        .bind(&id)
+                        .bind(id)
                         .fetch_one(&db.0)
                         .await
                     {

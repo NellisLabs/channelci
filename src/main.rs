@@ -1,7 +1,10 @@
 #![feature(associated_type_defaults)]
+#![feature(try_trait_v2)]
 
 pub mod cacheable;
 pub mod config;
+pub mod errors;
+pub mod impls;
 pub mod ingest;
 pub mod models;
 pub mod redis2;
@@ -27,6 +30,7 @@ use channel_common::{database::Database, websocket::WebsocketMessage};
 use config::CONFIG;
 use parking_lot::RwLock;
 use redis2::Client;
+
 use std::sync::Arc;
 use std::{collections::HashMap, time::Instant};
 use tokio::sync::mpsc::UnboundedSender;

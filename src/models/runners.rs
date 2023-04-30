@@ -1,8 +1,7 @@
 use crate::{cacheable::CacheAble, redis2::SetType, AppState};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use channel_common::{database::Database, models::Runners};
-use redis::{Cmd, ConnectionLike};
 
 #[async_trait]
 impl CacheAble for Runners {
@@ -14,7 +13,7 @@ impl CacheAble for Runners {
                 Some(&app.database),
                 Some(|db: Database| async move {
                     match sqlx::query_as::<_, Runners>(r#"SELECT * FROM runners WHERE id = ($1)"#)
-                        .bind(&id)
+                        .bind(id)
                         .fetch_one(&db.0)
                         .await
                     {

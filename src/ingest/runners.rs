@@ -1,12 +1,10 @@
-use std::io::Cursor;
-
 use crate::AppState;
 use crate::{cacheable::CacheAble, stats::JobStatus};
 use anyhow::{bail, Result};
 use channel_common::models::Runners;
 use rand::seq::SliceRandom;
 use rand::Rng;
-use redis::{Client as OriginalClient, Cmd, Connection, ConnectionLike};
+use redis::{Cmd, ConnectionLike};
 
 pub fn random_from_vec<T: ToOwned<Owned = T>>(vec: Vec<T>) -> Result<T> {
     if let Some(random) = vec.choose(&mut rand::thread_rng()) {
@@ -32,7 +30,7 @@ pub async fn select_random_runner(app: &AppState) -> Result<Runners> {
             println!("{all_runners:?}");
             let mut runners = Vec::new();
             for runner in &all_runners {
-                let runner = Runners::get_with_i64(&app, runner.0).await?;
+                let runner = Runners::get_with_i64(app, runner.0).await?;
                 println!("Possible Job: {runner:?}");
                 runners.push(runner)
             }
@@ -40,14 +38,14 @@ pub async fn select_random_runner(app: &AppState) -> Result<Runners> {
             if runners.len() == 1 {
                 return Ok(runners.get(0).unwrap().to_owned());
             }
-            return Ok(random_from_vec(runners)?);
+            random_from_vec(runners)
         }
         trl @ 1.. => {
             let random_runner: isize = rand::thread_rng().gen_range(0..trl).try_into()?;
             let Ok(redis::Value::Data(taken_runners_length)) = redis.req_command(&Cmd::lrange("ChannelCi-Taken-Runners", random_runner, random_runner)) else {
                 bail!("Failed to get length of ChannelCi-Taken-Runners key out of redis")
             };
-            return Ok(serde_json::from_slice::<Runners>(&taken_runners_length)?);
+            Ok(serde_json::from_slice::<Runners>(&taken_runners_length)?)
         }
     }
 }

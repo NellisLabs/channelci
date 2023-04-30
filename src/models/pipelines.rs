@@ -1,8 +1,7 @@
 use crate::{cacheable::CacheAble, redis2::SetType, AppState};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use channel_common::{database::Database, models::Pipelines};
-use redis::{Cmd, ConnectionLike};
 
 #[async_trait]
 impl CacheAble for Pipelines {
@@ -16,7 +15,7 @@ impl CacheAble for Pipelines {
                     match sqlx::query_as::<_, Self::GetReturn>(
                         r#"SELECT * FROM pipelines WHERE owned_by = ($1)"#,
                     )
-                    .bind(&id)
+                    .bind(id)
                     .fetch_one(&db.0)
                     .await
                     {

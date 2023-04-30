@@ -64,7 +64,7 @@ impl Client {
                         let r = fn_if_not_found(db.clone()).await;
 
                         self.set(&key, &r, set_type.unwrap_or_default())?;
-                        return Ok(r);
+                        Ok(r)
                     }
                     _ => bail!("The value from redis is null."),
                 },

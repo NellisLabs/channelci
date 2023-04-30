@@ -29,6 +29,6 @@ pub struct GithubWebhook {
 
 impl GithubWebhook {
     pub async fn get_saved_db(&self, app: &AppState) -> Result<Repos> {
-        Ok(Repos::get_with_github_id(app, self.repository.id).await?)
+        Repos::get_with_github_id(app, self.repository.id).await
     }
 }
