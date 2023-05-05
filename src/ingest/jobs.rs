@@ -1,14 +1,13 @@
 use channel_common::models::{Job, Repos, Runners};
 
 use crate::{
-    cacheable::CacheAble, ingest::runners::select_random_runner, requests::Repository,
+    cacheable::CacheAble, errors::Result, ingest::runners::select_random_runner,
     stats::JobStatus, AppState,
 };
-use anyhow::Result;
 
 pub async fn create_job(
     app: &AppState,
-    repo: Repository, /* user: ...user type !! FOR FUTURE USE */
+    repo: i64, /* user: ...user type !! FOR FUTURE USE */
     specific_runner: Option<String>,
     creator: &str,
 ) -> Result<Job> {
@@ -24,13 +23,15 @@ pub async fn create_job(
         select_random_runner(app).await?
     };
     // maybe this could be some function call that just checks a repo exists without getting it
-    let repo = Repos::get_using_name_and_owner(app, &repo.name, &repo.owner).await? as Repos;
-    Ok(sqlx::query_as::<_, Job>(
-        r#"INSERT INTO job(assigned_runner,repo,triggered_by) VALUES($1,$2,$3) RETURNING *"#,
+    let repo = Repos::get_with_i64(app, repo).await? as Repos;
+    Result::Ok(
+        sqlx::query_as::<_, Job>(
+            r#"INSERT INTO job(assigned_runner,repo,triggered_by) VALUES($1,$2,$3) RETURNING *"#,
+        )
+        .bind(&runner.name)
+        .bind(repo.id)
+        .bind(creator)
+        .fetch_one(&app.database.0)
+        .await?,
     )
-    .bind(&runner.name)
-    .bind(repo.id)
-    .bind(creator)
-    .fetch_one(&app.database.0)
-    .await?)
 }

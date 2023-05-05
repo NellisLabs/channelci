@@ -1,19 +1,33 @@
-use std::{convert::Infallible, ops::FromResidual};
-
-use axum::response::IntoResponse;
-use serde_json::json;
-
-use crate::errors::{
-    DatabaseError, Error, ErrorTy, ErrorWrapper, SrcDatabase, SrcSerde, SrcUnkown,
+use std::{
+    convert::Infallible,
+    num::TryFromIntError,
+    ops::{FromResidual, Try},
 };
 
+use crate::errors::{
+    ChannelError, DatabaseError, Error, ErrorTy, Result, SrcDatabase, SrcRust, SrcSerde, SrcUnkown,
+};
+use redis::{ErrorKind, RedisError};
+use serde_json::json;
+
+pub enum ErrorPurposeRust {
+    FailedToParseInt,
+}
 pub enum ErrorPurpose<'a> {
+    Redis(ErrorKind),
     Serde(serde_json::error::Category),
+    Rust(ErrorPurposeRust),
     Sqlx(&'a (dyn sqlx::error::DatabaseError + 'static)),
     CannotFind,
 }
 pub trait GeneralizedError {
     fn get_purpose(&self) -> ErrorPurpose;
+}
+
+impl GeneralizedError for RedisError {
+    fn get_purpose(&self) -> ErrorPurpose {
+        ErrorPurpose::Redis(self.kind())
+    }
 }
 
 impl GeneralizedError for sqlx::Error {
@@ -31,12 +45,43 @@ impl GeneralizedError for serde_json::error::Error {
     }
 }
 
-impl<O, E> FromResidual<Result<Infallible, E>> for ErrorWrapper<O, Error>
+impl GeneralizedError for TryFromIntError {
+    fn get_purpose(&self) -> ErrorPurpose {
+        ErrorPurpose::Rust(ErrorPurposeRust::FailedToParseInt)
+    }
+}
+
+impl<O, E: ChannelError> FromResidual<E> for Result<O, Error> {
+    fn from_residual(residual: E) -> Self {
+        Self::Err(Error {
+            source: &SrcUnkown,
+            ty: residual.get_type().clone(),
+            msg: residual.get_msg(),
+        })
+    }
+}
+
+impl<O> Try for Result<O, Error> {
+    type Output = O;
+    type Residual = Error;
+
+    fn from_output(output: Self::Output) -> Self {
+        Self::Ok(output)
+    }
+
+    fn branch(self) -> std::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Result::Ok(ok) => std::ops::ControlFlow::Continue(ok),
+            Result::Err(err) => std::ops::ControlFlow::Break(err),
+        }
+    }
+}
+
+impl<O, E> FromResidual<std::result::Result<Infallible, E>> for Result<O, Error>
 where
-    O: IntoResponse,
     E: GeneralizedError,
 {
-    fn from_residual(residual: Result<Infallible, E>) -> Self {
+    fn from_residual(residual: std::result::Result<Infallible, E>) -> Self {
         match residual {
             Ok(_) => unreachable!(),
             Err(_err) => match _err.get_purpose() {
@@ -70,6 +115,16 @@ where
                 }),
                 ErrorPurpose::CannotFind => Self::Err(Error {
                     source: &SrcUnkown,
+                    ty: ErrorTy::Unkown,
+                    msg: Some(json!({"msg": "An unkown error occured (no really)."}).to_string()),
+                }),
+                ErrorPurpose::Redis(_) => Self::Err(Error {
+                    source: &SrcUnkown,
+                    ty: ErrorTy::Unkown,
+                    msg: Some(json!({"msg": "An unkown error occured (no really)."}).to_string()),
+                }),
+                ErrorPurpose::Rust(_) => Self::Err(Error {
+                    source: &SrcRust,
                     ty: ErrorTy::Unkown,
                     msg: Some(json!({"msg": "An unkown error occured (no really)."}).to_string()),
                 }),

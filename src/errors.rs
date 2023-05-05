@@ -4,15 +4,18 @@ use axum::{
     response::IntoResponse,
 };
 
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    ops::FromResidual,
+};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DatabaseError {
     SyntaxError,
     FailedToGetRow,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorTy {
     Database(DatabaseError),
     Anyhow,
@@ -84,6 +87,22 @@ impl std::fmt::Display for SrcSerde {
     }
 }
 impl std::error::Error for SrcSerde {}
+#[derive(Debug)]
+pub struct SrcRedis;
+impl std::fmt::Display for SrcRedis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Redis.")
+    }
+}
+impl std::error::Error for SrcRedis {}
+#[derive(Debug)]
+pub struct SrcRust;
+impl std::fmt::Display for SrcRust {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Rust.")
+    }
+}
+impl std::error::Error for SrcRust {}
 
 pub trait ChannelError {
     fn get_type(&self) -> &ErrorTy;
@@ -140,24 +159,23 @@ impl IntoResponse for Error {
     }
 }
 
-pub enum ErrorWrapper<O, E = Error>
+pub enum Result<O, E = Error>
 where
-    O: IntoResponse,
     E: ChannelError,
 {
     Ok(O),
     Err(E),
 }
 
-impl<O, E> IntoResponse for ErrorWrapper<O, E>
+impl<O, E> IntoResponse for Result<O, E>
 where
     O: IntoResponse,
     E: ChannelError,
 {
     fn into_response(self) -> axum::response::Response {
         match self {
-            ErrorWrapper::Ok(res) => res.into_response(),
-            ErrorWrapper::Err(err) => {
+            Result::Ok(res) => res.into_response(),
+            Result::Err(err) => {
                 let mut res = ().into_response();
                 *res.status_mut() = err.get_type().into();
                 if let Some(msg) = err.get_msg() {
@@ -170,7 +188,7 @@ where
     }
 }
 
-impl<O> From<anyhow::Error> for ErrorWrapper<O, Error>
+impl<O> From<anyhow::Error> for Result<O, Error>
 where
     O: IntoResponse,
 {

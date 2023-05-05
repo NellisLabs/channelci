@@ -1,7 +1,7 @@
-use crate::{cacheable::CacheAble, redis2::SetType, stats::JobStatus, AppState};
-use anyhow::Result;
+use crate::{cacheable::CacheAble, errors::Result, redis2::SetType, stats::JobStatus, AppState};
 use async_trait::async_trait;
-use channel_common::{database::Database, models::Repos};
+use channel_common::models::Repos;
+use common::database::Database;
 
 #[async_trait]
 impl CacheAble for Repos {
@@ -28,50 +28,52 @@ impl CacheAble for Repos {
             )
             .await?;
 
-        Ok(Repos::get_with_i64(app, github_repo_id_to_database_id.0).await?)
+        Result::Ok(Repos::get_with_i64(app, github_repo_id_to_database_id.0).await?)
     }
     async fn get_using_name_and_owner(app: &AppState, name: &str, owner: &str) -> Result<Repos> {
-        Ok(app
-            .redis
-            .get(
-                format!("ChannelCi-Repos:{}-{}", name, owner),
-                Some(&app.database),
-                Some(|db: Database| async move {
-                    match sqlx::query_as::<_, Repos>(
-                        r#"SELECT * FROM repos WHERE name = ($1) AND owner = ($2)"#,
-                    )
-                    .bind(name)
-                    .bind(owner)
-                    .fetch_one(&db.0)
-                    .await
-                    {
-                        Ok(job) => job,
-                        Err(_) => panic!("Failed to get repo from database."),
-                    }
-                }),
-                Some(SetType::WithTTL(3600)),
-            )
-            .await?)
+        Result::Ok(
+            app.redis
+                .get(
+                    format!("ChannelCi-Repos:{}-{}", name, owner),
+                    Some(&app.database),
+                    Some(|db: Database| async move {
+                        match sqlx::query_as::<_, Repos>(
+                            r#"SELECT * FROM repos WHERE name = ($1) AND owner = ($2)"#,
+                        )
+                        .bind(name)
+                        .bind(owner)
+                        .fetch_one(&db.0)
+                        .await
+                        {
+                            Ok(job) => job,
+                            Err(_) => panic!("Failed to get repo from database."),
+                        }
+                    }),
+                    Some(SetType::WithTTL(3600)),
+                )
+                .await?,
+        )
     }
 
     async fn get_with_i64(app: &AppState, id: i64) -> Result<Repos> {
-        Ok(app
-            .redis
-            .get(
-                format!("ChannelCi-Repos:{}", id),
-                Some(&app.database),
-                Some(|db: Database| async move {
-                    match sqlx::query_as::<_, Repos>(r#"SELECT * FROM repos WHERE id = ($1)"#)
-                        .bind(id)
-                        .fetch_one(&db.0)
-                        .await
-                    {
-                        Ok(job) => job,
-                        Err(_) => panic!("Failed to get repo from database."),
-                    }
-                }),
-                Some(SetType::WithTTL(3600)),
-            )
-            .await?)
+        Result::Ok(
+            app.redis
+                .get(
+                    format!("ChannelCi-Repos:{}", id),
+                    Some(&app.database),
+                    Some(|db: Database| async move {
+                        match sqlx::query_as::<_, Repos>(r#"SELECT * FROM repos WHERE id = ($1)"#)
+                            .bind(id)
+                            .fetch_one(&db.0)
+                            .await
+                        {
+                            Ok(job) => job,
+                            Err(_) => panic!("Failed to get repo from database."),
+                        }
+                    }),
+                    Some(SetType::WithTTL(3600)),
+                )
+                .await?,
+        )
     }
 }

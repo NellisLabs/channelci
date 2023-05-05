@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{requests::CreateRunnerData, AppState, ConnectedRunner};
+use crate::{AppState, ConnectedRunner};
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -150,33 +150,34 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, state: AppState, runn
     println!("Hi3");
 }
 
-pub async fn create_runner(
-    State(app): State<AppState>,
-    Json(new_runner): Json<CreateRunnerData>,
-) -> impl IntoResponse {
-    let mut new_runner_token = Vec::new();
-    //let mut new_runner_token: [u8; 32] = [0; 32];
-    let sr = ring::rand::SystemRandom::new();
-    sr.fill(&mut new_runner_token).unwrap();
+// TODO: Bring this back better
+// pub async fn create_runner(
+//     State(app): State<AppState>,
+//     Json(new_runner): Json<CreateRunnerData>,
+// ) -> impl IntoResponse {
+//     let mut new_runner_token = Vec::new();
+//     //let mut new_runner_token: [u8; 32] = [0; 32];
+//     let sr = ring::rand::SystemRandom::new();
+//     sr.fill(&mut new_runner_token).unwrap();
 
-    let new_runner_token = hex::encode(new_runner_token);
-    let Ok(query) = sqlx::query_as::<_, Runners>(r#"INSERT INTO runners(name,token) VALUES($1,$2) RETURNING *"#)
-    .bind(&new_runner.name)
-    .bind(&new_runner_token)
-    .fetch_one(&app.database.0)
-    .await else {
-        return     (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            json!({}).to_string(),
-        );
-    };
+//     let new_runner_token = hex::encode(new_runner_token);
+//     let Ok(query) = sqlx::query_as::<_, Runners>(r#"INSERT INTO runners(name,token) VALUES($1,$2) RETURNING *"#)
+//     .bind(&new_runner.name)
+//     .bind(&new_runner_token)
+//     .fetch_one(&app.database.0)
+//     .await else {
+//         return     (
+//             StatusCode::INTERNAL_SERVER_ERROR,
+//             json!({}).to_string(),
+//         );
+//     };
 
-    (
-        StatusCode::OK,
-        json!({
-            "id": query.id,
-            "name": query.name
-        })
-        .to_string(),
-    )
-}
+//     (
+//         StatusCode::OK,
+//         json!({
+//             "id": query.id,
+//             "name": query.name
+//         })
+//         .to_string(),
+//     )
+// }

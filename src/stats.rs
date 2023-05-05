@@ -1,10 +1,13 @@
-use anyhow::{bail, Result};
 use redis::{Cmd, ConnectionLike};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashMap;
 
-use crate::{redis2::SetType, AppState};
+use crate::{
+    errors::{Error, ErrorTy, Result, SrcRedis},
+    redis2::SetType,
+    AppState,
+};
 
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone)]
 /// This may be used in areas where other i64s will be used
@@ -46,14 +49,20 @@ impl Stats {
                     };
                     app.redis
                         .set("ChannelCi-Stats", &stats, SetType::WithTTL(3600))?;
-                    Ok(stats)
+                    Result::Ok(stats)
                 }
-                redis::Value::Data(data) => Ok(serde_json::from_slice::<Stats>(&data)?),
-                _ => bail!("Invalid response from Redis"),
+                redis::Value::Data(data) => Result::Ok(serde_json::from_slice::<Stats>(&data)?),
+                _ => Result::Err(Error {
+                    source: &SrcRedis,
+                    ty: ErrorTy::Unkown,
+                    msg: Some(String::from("Failed to get data from redis")),
+                }),
             },
-            Err(_err) => {
-                bail!("Error getting stats from Redis")
-            }
+            Err(_err) => Result::Err(Error {
+                source: &SrcRedis,
+                ty: ErrorTy::Unkown,
+                msg: Some(String::from("Error getting stats from Redis")),
+            }),
         }
     }
 }

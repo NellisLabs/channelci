@@ -1,6 +1,6 @@
+use crate::errors::{Error, ErrorTy, SrcRedis, SrcUnkown};
 use crate::AppState;
-use crate::{cacheable::CacheAble, stats::JobStatus};
-use anyhow::{bail, Result};
+use crate::{cacheable::CacheAble, errors::Result, stats::JobStatus};
 use channel_common::models::Runners;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -8,16 +8,25 @@ use redis::{Cmd, ConnectionLike};
 
 pub fn random_from_vec<T: ToOwned<Owned = T>>(vec: Vec<T>) -> Result<T> {
     if let Some(random) = vec.choose(&mut rand::thread_rng()) {
-        return Ok(random.to_owned());
+        return Result::Ok(random.to_owned());
     }
-    println!("Lenth: {:?}", vec.len());
-    bail!("Failed to select a random element from the provided vec.")
+    Result::Err(Error {
+        source: &SrcUnkown,
+        ty: ErrorTy::Unkown,
+        msg: Some(String::from(
+            "Failed to select a random element from the provided vector.",
+        )),
+    })
 }
 
 pub async fn select_random_runner(app: &AppState) -> Result<Runners> {
     let mut redis = app.redis.get_conn()?;
     let Ok(redis::Value::Int(taken_runners_length)) = redis.req_command(&Cmd::llen("ChannelCi-Taken-Runners")) else {
-        bail!("Failed to get length of ChannelCi-Taken-Runners key out of redis")
+        return Result::Err(Error {
+            source: &SrcRedis,
+            ty: ErrorTy::Unkown,
+            msg: Some(String::from("Failed to get length of ChannelCi-Taken-Runners key out of redis.")),
+        });
     };
     let taken_runners_length: u64 = taken_runners_length.try_into()?;
     match taken_runners_length {
@@ -36,16 +45,20 @@ pub async fn select_random_runner(app: &AppState) -> Result<Runners> {
             }
             println!("Runners Lenth: {runners:?}");
             if runners.len() == 1 {
-                return Ok(runners.get(0).unwrap().to_owned());
+                return Result::Ok(runners.get(0).unwrap().to_owned());
             }
             random_from_vec(runners)
         }
         trl @ 1.. => {
             let random_runner: isize = rand::thread_rng().gen_range(0..trl).try_into()?;
             let Ok(redis::Value::Data(taken_runners_length)) = redis.req_command(&Cmd::lrange("ChannelCi-Taken-Runners", random_runner, random_runner)) else {
-                bail!("Failed to get length of ChannelCi-Taken-Runners key out of redis")
+                return Result::Err(Error {
+                    source: &SrcRedis,
+                    ty: ErrorTy::Unkown,
+                    msg: Some(String::from("Failed to get selected runner from ChannelCi-Taken-Runners in Redis.")),
+                });
             };
-            Ok(serde_json::from_slice::<Runners>(&taken_runners_length)?)
+            Result::Ok(serde_json::from_slice::<Runners>(&taken_runners_length)?)
         }
     }
 }

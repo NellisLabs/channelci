@@ -1,7 +1,7 @@
-use anyhow::Result;
+//use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::AppState;
+use crate::{errors::Result, AppState};
 
 #[async_trait]
 pub trait CacheAble: Sized {

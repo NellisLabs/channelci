@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 channel-common = { git = "https://github.com/NellisLabs/channel-common.git", branch = "master" }
+common = { path = "./common" }
 axum = { version = "0.6.5", features = [
     "json",
     "query",

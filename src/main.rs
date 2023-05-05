@@ -8,25 +8,26 @@ pub mod impls;
 pub mod ingest;
 pub mod models;
 pub mod redis2;
-pub mod requests;
 pub mod routes;
 pub mod stats;
 use std::net::SocketAddr;
 
 use crate::{
+    errors::Result,
     routes::{
         get_stats,
-        jobs::{get_job, get_jobs, manual_job_trigger},
-        runners::{create_runner, get_runner_current_job, ws_handler},
+        jobs::{get_job, get_jobs},
+        runners::{get_runner_current_job, ws_handler},
     },
     stats::Stats,
 };
-use anyhow::Result;
+use anyhow::{bail, Result as AnyhowResult};
 use axum::{
     routing::{get, post},
     Router,
 };
-use channel_common::{database::Database, websocket::WebsocketMessage};
+use common::database::Database;
+use channel_common::{websocket::WebsocketMessage};
 use config::CONFIG;
 use parking_lot::RwLock;
 use redis2::Client;
@@ -52,13 +53,15 @@ pub struct ConnectedRunner {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> AnyhowResult<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .pretty()
         .init();
 
-    let redis = Client::new()?;
+    let Result::Ok(redis) = Client::new() else {
+        bail!("Failed to create the redis client.");
+    };
     let database = Database::new(CONFIG.database.to_string()).await?;
     database.migrate().await?;
 
@@ -75,15 +78,15 @@ async fn main() -> Result<()> {
     // Load some basic statistics for the initial page load, when it happens. This will store for 1 hour then expire
     // until the next request that requires it. As the service is just starting, the connected_runners field will always
     // be empty and won't be updated till runners connect and this expires and gets reset.
-    Stats::get(&app_state).await?;
+    if let Result::Err(_) = Stats::get(&app_state).await {
+        bail!("Failed to load stats into redis.");
+    }
 
     let runner_routes = Router::new()
-        .route("/", post(create_runner))
         .route("/:runner/current", get(get_runner_current_job))
         .route("/:runner/connect", get(ws_handler));
 
     let job_routes = Router::new()
-        .route("/", post(manual_job_trigger))
         .route("/", get(get_jobs))
         .route("/:id", get(get_job));
 
