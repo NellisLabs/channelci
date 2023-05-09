@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::FromRow;
 
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone)]
@@ -8,6 +11,7 @@ use sqlx::FromRow;
 pub struct Objects {
     pub id: i64,
     #[serde(rename = "type")]
+    #[sqlx(rename = "type")]
     pub obj_type: i32,
     pub name: Option<String>,
     pub refers_to: Option<i64>,
@@ -30,17 +34,17 @@ pub struct Pipelines {
 #[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
 pub struct PipelineStep {
     pub id: i64,
-    pub belongs_to: i64,
     pub run: String,
     pub created_at: NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
 /// Reprents a repo object. Bases for most things in Channel
-pub struct Repository {
+pub struct Projects {
+    #[serde(skip_deserializing)]
     pub id: i64,
     pub name: String,
-    pub steps: Vec<i64>,
     pub git_url: Option<String>,
+    #[serde(skip_deserializing)]
     pub created_at: NaiveDateTime,
 }
