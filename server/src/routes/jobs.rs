@@ -1,4 +1,4 @@
-use crate::{errors::Result, stats::JobStatus, AppState};
+use crate::{errors::Result, redis2::SetType, stats::JobStatus, AppState};
 
 use axum::{
     extract::{Json, Path, State},
@@ -15,7 +15,7 @@ pub async fn get_job(
 ) -> Result<impl IntoResponse> {
     Result::Ok((
         StatusCode::OK,
-        json!({ "job": app.cache.get_job(id).await? }).to_string(),
+        json!({ "job": app.cache.get_job(&id.to_string()).await? }).to_string(),
     ))
 }
 

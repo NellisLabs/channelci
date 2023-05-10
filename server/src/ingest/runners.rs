@@ -39,7 +39,7 @@ pub async fn select_random_runner(app: &AppState) -> Result<Runners> {
             println!("{all_runners:?}");
             let mut runners = Vec::new();
             for runner in &all_runners {
-                let runner = app.cache.get_runner(runner.0).await?;
+                let runner = app.cache.get_runner(&runner.0.to_string()).await?;
                 println!("Possible Job: {runner:?}");
                 runners.push(runner)
             }

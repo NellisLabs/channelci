@@ -6,7 +6,6 @@ pub mod config;
 pub mod errors;
 pub mod impls;
 pub mod ingest;
-pub mod models;
 pub mod objects;
 pub mod redis2;
 pub mod routes;
