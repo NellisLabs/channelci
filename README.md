@@ -26,5 +26,5 @@ Todo list. This to-do list is not complete and may change as different tasks are
 ### Just some stuff for devs or people working on it to remember:
 - Object Types:
     - All types *should* have a respective db table to go along with them
-    - 0: Pipeline
-    - 1: Repository
+    - 0: Project
+    - 1: Pipeline
