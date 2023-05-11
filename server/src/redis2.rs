@@ -7,7 +7,7 @@ use common::database::Database;
 use futures::{future::Ready, Future};
 use redis::{Client as OriginalClient, Cmd, Connection, ConnectionLike};
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgRow, FromRow, Row};
+use sqlx::{postgres::PgRow, Encode, FromRow, Postgres, Row, Type};
 use std::{ops::Fn, sync::Arc};
 
 pub type DummyFuture<R> = Ready<R>;
@@ -49,11 +49,11 @@ impl Client {
         }
         Result::Ok(())
     }
-    pub async fn get<R, K: Into<String>, F, Fut>(
+    pub async fn get<'c, R, K: Into<String>, KV, F, Fut>(
         &self,
         key: K,
         key2: K,
-        key_value: K,
+        key_value: KV,
         db: Option<&Database>,
         fn_if_not_found: Option<F>,
         set_type: Option<SetType>,
@@ -62,35 +62,41 @@ impl Client {
         R: for<'a> Deserialize<'a> + Sized + Serialize + Unpin + Send + for<'r> FromRow<'r, PgRow>,
         F: Fn(Database) -> Fut,
         Fut: Future<Output = R>,
+        KV: for<'b> Encode<'b, Postgres> + Send + Type<Postgres> + ToString + 'c,
     {
         async fn default_fn_if_not_found<
+            'c,
             R: for<'a> Deserialize<'a> + Serialize + Unpin + Send + for<'r> FromRow<'r, PgRow>,
             K: Into<String>,
+            KV: for<'b> Encode<'b, Postgres> + Send + Type<Postgres> + 'c,
         >(
             db: &Database,
             key: K,
             key2: K,
-            key_value: K,
+            key_value: KV,
         ) -> R {
             match sqlx::query_as::<_, R>(&format!(
                 "SELECT * FROM {} WHERE {} = ($1)",
                 key.into(),
                 key2.into()
             ))
-            .bind(key_value.into())
+            .bind(key_value)
             .fetch_one(&db.0)
             .await
             {
-                Ok(runner) => runner,
-                Err(_) => panic!("OOp"),
+                Ok(obj) => obj,
+                Err(err) => {
+                    println!("{err:?}");
+                    panic!("OOp")
+                }
             }
         }
 
         let mut redis = self.get_conn()?;
         let key: String = key.into();
-        let key_value: String = key_value.into();
-        let formatted_key = format!("ChannelCi-{}:{}", key, key_value);
-
+        let key_value_str: String = key_value.to_string();
+        let formatted_key = format!("ChannelCi-{}:{}", key, key_value_str);
+        println!("cannelci --> {formatted_key:?}");
         match redis.req_command(&Cmd::get(&formatted_key)) {
             Ok(val) => match val {
                 redis::Value::Nil => match db {
@@ -98,8 +104,7 @@ impl Client {
                         let r = if let Some(fn_if_not_found) = fn_if_not_found {
                             fn_if_not_found(db.clone()).await
                         } else {
-                            default_fn_if_not_found(db, key.into(), key2.into(), key_value.into())
-                                .await
+                            default_fn_if_not_found(db, key.into(), key2.into(), key_value).await
                         };
 
                         self.set(&formatted_key, &r, set_type.unwrap_or_default())?;

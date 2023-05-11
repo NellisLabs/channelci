@@ -4,3 +4,4 @@ pub mod objects;
 pub mod ws;
 pub mod opcodes;
 pub mod database;
+pub mod models;

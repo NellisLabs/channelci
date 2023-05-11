@@ -15,7 +15,7 @@ pub async fn create_job(
                 .bind(&specific_runner)
                 .fetch_one(&app.database.0)
                 .await?;
-        app.cache.get_runner(runner_id.0).await?
+        app.cache.get_runner(&runner_id.0.to_string()).await?
     } else {
         select_random_runner(app).await?
     };

@@ -1,5 +1,7 @@
 use crate::{
+    db::DatabaseImpl,
     errors::Result,
+    models::DatabaseObjectGetterAndSetters,
     objects::{create_object, ObjectType},
     stats::JobStatus,
     AppState,
@@ -27,13 +29,18 @@ pub async fn create_project(
     Json(project): Json<CreateProject>,
 ) -> Result<impl IntoResponse> {
     // TOOD: Abstract the following queries...
-    let new_project = sqlx::query_as::<_, Projects>(
-        r#"INSERT INTO project(name,git_url) VALUES($1,$2) RETURNING *"#,
-    )
-    .bind(&project.project.name)
-    .bind(&project.project.git_url)
-    .fetch_one(&app.database.0)
-    .await?;
+    // let new_project = sqlx::query_as::<_, Projects>(
+    //     r#"INSERT INTO project(name,git_url) VALUES($1,$2) RETURNING *"#,
+    // )
+    // .bind(&project.project.name)
+    // .bind(&project.project.git_url)
+    // .fetch_one(&app.database.0)
+    // .await?;
+    let project_name = project.project.name.to_owned();
+    let new_project = app
+        .database
+        .create_project(vec![Some(project_name), project.project.git_url])
+        .await?;
 
     create_object(
         &app.database,

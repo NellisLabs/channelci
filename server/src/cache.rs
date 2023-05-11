@@ -4,13 +4,14 @@ use crate::{
     errors::Result,
     redis2::{Client, DummyFuture, SetType},
 };
-use channel_common::models::{Job, Runners};
+use channel_common::models::Runners;
 use common::{
     database::Database,
+    models::Job,
     objects::{Objects, Pipelines, Projects},
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgRow, FromRow};
+use sqlx::{postgres::PgRow, Encode, FromRow, Postgres, Type};
 
 #[derive(Clone)]
 pub struct Cache {
@@ -25,28 +26,29 @@ impl Cache {
             redis: Client::new()?,
         })
     }
-    pub async fn get_job(&self, id: &str) -> Result<Job> {
+    pub async fn get_job(&self, id: i64) -> Result<Job> {
         Result::Ok(self.get("job", id, Some(SetType::WithTTL(3600))).await?)
     }
     pub async fn get_runner(&self, id: &str) -> Result<Runners> {
         Result::Ok(self.get("runner", id, Some(SetType::WithTTL(3600))).await?)
     }
     //get("pipelines", "id", 1, Some(&database), None, Some(SetType::))
-    pub async fn get<R, K: Into<String>>(
+    pub async fn get<'c, R, KV, K: Into<String>>(
         &self,
         key: K,
-        key_val: K,
+        key_val: KV,
         set_type: Option<SetType>,
     ) -> Result<R>
     where
         R: for<'a> Deserialize<'a> + Serialize + Unpin + Send + Sized + for<'r> FromRow<'r, PgRow>,
+        KV: for<'b> Encode<'b, Postgres> + Send + Type<Postgres> + ToString + 'c,
     {
         Result::Ok(
             self.redis
-                .get::<R, String, fn(Database) -> DummyFuture<R>, DummyFuture<R>>(
+                .get::<R, String, KV, fn(Database) -> DummyFuture<R>, DummyFuture<R>>(
                     key.into(),
                     "id".into(),
-                    key_val.into(),
+                    key_val,
                     Some(&self.database),
                     None,
                     set_type,
