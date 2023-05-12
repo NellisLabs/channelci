@@ -48,6 +48,13 @@ impl_tuple_gen_query!(
     arg2 -> B,
 );
 
+impl_tuple_gen_query!(
+    gen_query_3,
+    arg1 -> A,
+    arg2 -> B,
+    arg3 -> C,
+);
+
 pub enum DbQuery<'a, R> {
     QueryAs(QueryAs<'a, Postgres, R, PgArguments>),
     Query(Query<'a, Postgres, PgArguments>),
