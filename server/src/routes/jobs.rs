@@ -1,4 +1,4 @@
-use crate::{errors::Result, redis2::SetType, stats::JobStatus, AppState};
+use crate::{db::DatabaseImpl, errors::Result, redis2::SetType, stats::JobStatus, AppState};
 
 use axum::{
     extract::{Json, Path, State},
