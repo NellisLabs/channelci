@@ -28,3 +28,6 @@ Todo list. This to-do list is not complete and may change as different tasks are
     - All types *should* have a respective db table to go along with them
     - 0: Project
     - 1: Pipeline
+
+- Trigger "service" column:
+    - 0: Github

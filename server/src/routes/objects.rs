@@ -1,7 +1,6 @@
 use crate::{
     db::DatabaseImpl,
     errors::Result,
-    models::DatabaseObjectGetterAndSetters,
     objects::{create_object, ObjectType},
     stats::JobStatus,
     AppState,
@@ -31,11 +30,10 @@ pub async fn create_project(
     let project_name = project.project.name.to_owned();
     let new_project = app
         .database
-        .execute_one(crate::db::gen_query_2::<Projects, _, _>(
-            "INSERT INTO project(name,git_url) VALUES($1,$2) RETURNING *",
+        .execute_one(crate::db::gen_query::<Projects, _>(
+            "INSERT INTO project(name) VALUES($1) RETURNING *",
             true,
             project_name,
-            project.project.git_url,
         ))
         .await?;
 
@@ -87,11 +85,5 @@ pub async fn create_project(
         )
         .await?;
     }
-    Result::Ok((
-        StatusCode::OK,
-        json!({
-            "project": new_project,
-        })
-        .to_string(),
-    ))
+    Result::Ok((StatusCode::OK, serde_json::to_string(&new_project)?))
 }

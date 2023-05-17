@@ -14,3 +14,18 @@ pub struct Job {
     pub start: NaiveDateTime,
     pub end: Option<NaiveDateTime>,
 }
+
+#[derive(Serialize, Deserialize, Debug, FromRow, Clone)]
+pub struct Triggers {
+    pub id: i64,
+    pub trigger_type: i32,
+    pub github_repo_id: Option<i64>,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, FromRow, Clone)]
+pub struct TriggersUsedBy {
+    pub id: i64,
+    pub trigger: i64,
+    pub owned_by: i64,
+}

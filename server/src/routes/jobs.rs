@@ -1,11 +1,19 @@
-use crate::{db::DatabaseImpl, errors::Result, redis2::SetType, stats::JobStatus, AppState};
+use std::println;
+
+use crate::{
+    db::DatabaseImpl, errors::Result, ingest::models::GithubWebhook, redis2::SetType,
+    stats::JobStatus, AppState,
+};
 
 use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use channel_common::models::Job;
+use common::{
+    models::{Triggers, TriggersUsedBy},
+    objects::Pipelines,
+};
 
 use serde_json::json;
 
@@ -17,6 +25,36 @@ pub async fn get_job(
         StatusCode::OK,
         json!({ "job": app.cache.get_job(id).await? }).to_string(),
     ))
+}
+
+pub async fn github_webhook(
+    State(app): State<AppState>,
+    Json(data): Json<GithubWebhook>,
+) -> Result<impl IntoResponse> {
+    // When creating a project (or pipeline) that uses github webhooks as a trigger
+    // make sure to get the id of the repo using https://api.github.com/repos/OWNER/NAME
+    // TODO: Track if this fails, or anything else in any trigger / build to update the status on the website
+    let trigger_related_to_this_pipeline = app
+        .database
+        .execute_one(crate::db::gen_query::<TriggersUsedBy, _>(
+            "SELECT * FROM triggers_used_by WHERE trigger = (SELECT id FROM triggers WHERE github_repo_id = ($1) AND trigger_type = 0);",
+            true,
+            data.repository.id,
+        ))
+        .await?;
+
+    let pipeline = app
+        .database
+        .execute_one(crate::db::gen_query::<Pipelines, _>(
+            "SELECT * FROM pipelines WHERE id = ($1)",
+            true,
+            trigger_related_to_this_pipeline.owned_by,
+        ))
+        .await?;
+
+    println!("{pipeline:?}");
+
+    Result::Ok((StatusCode::OK, json!({}).to_string()))
 }
 
 // pub async fn get_jobs(State(app): State<AppState>) -> Result<impl IntoResponse> {

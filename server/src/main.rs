@@ -7,7 +7,6 @@ pub mod db;
 pub mod errors;
 pub mod impls;
 pub mod ingest;
-pub mod models;
 pub mod objects;
 pub mod redis2;
 pub mod routes;
@@ -19,7 +18,7 @@ use crate::{
     errors::Result,
     routes::{
         get_stats,
-        jobs::get_job,
+        jobs::{get_job, github_webhook},
         objects::create_project,
         runners::{get_runner_current_job, ws_handler},
     },
@@ -108,9 +107,10 @@ async fn main() -> AnyhowResult<()> {
         .nest("/jobs", job_routes)
         .nest("/objects", object_routes)
         .route("/stats", get(get_stats))
+        .route("/github", post(github_webhook))
         .with_state(app_state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("Starting on: {addr:?}");
     axum::Server::bind(&addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())

@@ -44,7 +44,6 @@ pub struct Projects {
     #[serde(skip_deserializing)]
     pub id: i64,
     pub name: String,
-    pub git_url: Option<String>,
     #[serde(skip_deserializing)]
     pub created_at: NaiveDateTime,
 }
